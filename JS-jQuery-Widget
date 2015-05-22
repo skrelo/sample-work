@@ -1,4 +1,5 @@
-// Property Details Modal
+// Template Item Loader - Custom jQuery widget
+// @author skrelo@gmail.com
 //----------------------------
 
 var a2a_config = a2a_config || {};
