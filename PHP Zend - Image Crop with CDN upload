@@ -174,5 +174,54 @@
 
 			$aws = new App_Cdn();
 			return $aws->put( $dest . "." . $extension, $mime );
+
+		}
+	}
+
+
+	use OpenCloud\Rackspace;
+
+	class App_Cdn {
+
+		public $config;
+
+		const IMAGE_LIBRARY = "snp-library";
+
+		public function loadExtensions() {
+
+			$s = array();
+			foreach ( @explode( "\n", @file_get_contents( "http://svn.apache.org/repos/asf/httpd/httpd/trunk/docs/conf/mime.types" ) ) as $x ) {
+				if ( isset( $x[ 0 ] ) && $x[ 0 ] !== '#' && preg_match_all( '#([^\s]+)#', $x, $out ) && isset( $out[ 1 ] ) && ( $c = count( $out[ 1 ] ) ) > 1 ) {
+					for ( $i = 1; $i < $c; $i++ ) {
+						$s[ $out[ 1 ][ $i ] ] = $out[ 1 ][ 0 ];
+					}
+				}
+			}
+			ksort( $s );
+			return $s;
+		}
+
+		public function mimeToExt( $mime ) {
+			$extensions = $this->loadExtensions();
+			$ext = array_search( $mime, (array)$extensions );
+			return $ext;
+		}
+
+		public function put( $ofile, $mime ) {
+			$ext = $this->mimeToExt( $mime );
+			$file = md5_file( $ofile ) . "." . $ext;
+			$dir = substr( $file, 0, 2 );
+			$upload = $dir . "/" . $file;
+
+			$cdn = Zend_Registry::get( 'cdn' );
+			$this->config = $cdn;
+			$client = new Rackspace( RACKSPACE_US, array(
+				"username" => $cdn->username,
+				"apiKey" => $cdn->apikey
+			) );
+			$service = $client->objectStoreService( 'cloudFiles' );
+			$container = $service->getContainer( $cdn->bucket );
+			$up = $container->uploadObject( $upload, fopen( $ofile, 'r+' ) );
+			return "/" . $upload;
 		}
 	}
